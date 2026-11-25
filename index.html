@@ -1,0 +1,982 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>料金メニュー・お見積り</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Zen+Old+Mincho:wght@400;500;700&display=swap');
+html, body { height:100%; margin:0; }
+.emb-app {
+  --teal:#01A6A5; --dark:#2A7F85; --action:#007C7B; --mint:#EEF8F8; --paper:#FFFFFF;
+  --border:#E6E6E6; --ink:#222222; --title:#333333; --sub:#666666; --error:#D93025;
+  --heading:"Zen Old Mincho","Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
+  display:flex; flex-direction:column; height:100%; overflow:hidden; position:relative;
+  background:var(--paper); color:var(--ink); font:15px/1.7 "Zen Old Mincho","Hiragino Mincho ProN","Yu Mincho","YuMincho",serif;
+}
+.emb-app *, .emb-app *::before, .emb-app *::after { box-sizing:border-box; }
+.emb-app [hidden] { display:none !important; }
+.emb-app :is(h1,h2,h3,p,ul,ol,fieldset) { margin:0; }
+.emb-app :is(h1,h2,h3) { font-family:var(--heading); color:var(--title); line-height:1.3; }
+.emb-app :where(button,input,select,textarea) { font:inherit; color:inherit; }
+.emb-app button { cursor:pointer; }
+.emb-app button:disabled { cursor:default; }
+.emb-app :focus-visible { outline:3px solid var(--dark); outline-offset:2px; }
+.emb-head { flex:none; background:var(--paper); border-bottom:1px solid var(--border); z-index:1; }
+.emb-steps { list-style:none; padding:10px 12px; display:flex; justify-content:center; align-items:center; gap:clamp(5px,2vw,22px); }
+.emb-step { display:flex; gap:5px; align-items:center; color:var(--sub); font-size:clamp(12px,2.5vw,13px); font-weight:700; white-space:nowrap; }
+.emb-step + .emb-step::before { content:"›"; color:var(--sub); margin-right:3px; }
+.emb-step[aria-current] { color:var(--dark); }
+.emb-number { display:inline-flex; align-items:center; justify-content:center; flex:none; line-height:1; background:var(--paper); width:19px; height:19px; border:1px solid var(--teal); border-radius:50%; }
+.emb-step[aria-current] .emb-number { color:white; background:var(--action); border-color:var(--action); }
+@media (max-width:400px) {
+  .emb-steps { padding-inline:4px; gap:3px; }
+  .emb-step { gap:2px; font-size:11px; }
+  .emb-step + .emb-step::before { margin-right:0; }
+  .emb-number { width:14px; height:14px; }
+}
+.emb-tier-picker { display:flex; flex-wrap:wrap; gap:5px; padding:4px; border:1px solid var(--border); border-radius:4px; background:var(--paper); }
+.emb-tier { flex:1 1 auto; min-height:44px; padding:4px 8px; border:1px solid transparent; border-radius:4px; background:var(--paper); font-size:13px; font-weight:700; }
+.emb-tier[aria-pressed="true"] { background:var(--action); border-color:var(--action); color:white; }
+.emb-tier-gold, .emb-tier-tag, .emb-audience-chip { display:inline-block; border-radius:4px; padding:1px 7px; font-size:11px; font-weight:700; }
+.emb-tier-gold { margin-left:5px; background:var(--mint); color:var(--action); }
+.emb-tier-tag { margin-right:5px; background:var(--mint); color:var(--action); }
+.emb-tier-tag[data-tier="regular"] { background:#F5F5F5; color:var(--ink); }
+.emb-content .emb-tier-lead, .emb-content .emb-audience, .emb-content .emb-tabs { margin-top:12px; }
+.emb-audience { display:flex; align-items:center; flex-wrap:wrap; gap:5px; padding:6px 8px; background:var(--paper); border-radius:4px; }
+.emb-audience-chip { background:var(--mint); color:var(--action); }
+.emb-notes { list-style:none; padding:0; }
+.emb-menu > .emb-notes { margin-top:12px; }
+@media (max-width:767px) { .emb-audience { display:none; } }
+.emb-tabs { display:flex; gap:6px; overflow-x:auto; padding:5px 5px 0; border-bottom:1px solid var(--border); scrollbar-width:thin; }
+.emb-tab { border:0; border-bottom:2px solid transparent; background:transparent; border-radius:4px; padding:6px 10px; flex:none; min-height:40px; font-weight:700; }
+.emb-tab[aria-selected="true"] { color:var(--action); border-bottom-color:var(--teal); }
+.emb-badge { display:inline-grid; place-items:center; margin-left:5px; border-radius:4px; background:var(--action); color:white; min-width:21px; padding:0 4px; font-size:12px; }
+.emb-work { display:flex; flex:1; min-height:0; position:relative; }
+.emb-scroll { flex:1; min-width:0; min-height:0; overflow-x:hidden; overflow-y:auto; overscroll-behavior:contain; -webkit-overflow-scrolling:touch; }
+.emb-content { padding:clamp(32px,5vw,64px) clamp(16px,3.5vw,38px); max-width:1080px; margin:auto; }
+.emb-content > * + *, .emb-form > * + * { margin-top:16px; }
+.emb-tier[aria-pressed="true"] .emb-badge { background:white; color:var(--action); }
+.emb-tab:focus-visible { outline-offset:-3px; }
+.emb-content .emb-display-title, .emb-cart-heading { font-family:"Cinzel","Zen Old Mincho",serif; font-weight:600; color:var(--title); line-height:1.2; }
+.emb-content .emb-display-title { font-size:clamp(32px,5vw,46px); text-align:center; }
+.emb-content .emb-title { margin:8px 0 24px; font-size:16px; letter-spacing:.08em; text-align:center; }
+.emb-content .emb-intro { margin-bottom:28px; color:var(--sub); text-align:center; }
+.emb-content .emb-intro + .emb-tier-picker { margin-top:0; }
+.emb-menu { container-type:inline-size; }
+.emb-grid { display:grid; grid-template-columns:minmax(0,1fr); gap:14px; }
+@container (min-width:660px) { .emb-plan-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+@container (min-width:840px) { .emb-grid { grid-template-columns:repeat(3,minmax(0,1fr)); } }
+.emb-card, .emb-box { border:1px solid var(--border); border-radius:4px; background:var(--paper); padding:clamp(16px,3vw,24px); }
+.emb-card { display:flex; flex-direction:column; align-items:stretch; gap:10px; overflow-wrap:anywhere; }
+.emb-card.emb-recommended { border-color:var(--teal); }
+.emb-card.emb-selected { border-color:var(--dark); background:var(--mint); }
+.emb-app .emb-selected :is(.emb-card-title,.emb-price) { color:var(--action); }
+.emb-selected .emb-link { color:var(--action) !important; }
+.emb-card-top { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+.emb-app .emb-card-title { color:var(--dark); font-size:20px; }
+.emb-recommend { background:#F2C94C; color:var(--ink); border-radius:4px; padding:1px 9px; font-size:12px; font-weight:700; }
+.emb-price, .emb-amount { color:var(--dark); font-weight:700; font-variant-numeric:tabular-nums; }
+.emb-price { font-size:26px; line-height:1.25; }
+.emb-price-small { font-size:14px; }
+.emb-small { color:var(--sub); font-size:13px; overflow-wrap:anywhere; }
+.emb-icon { flex:none; width:23px; height:23px; color:var(--dark); }
+.emb-features { list-style:none; padding:0; font-size:14px; }
+.emb-feature { display:flex; align-items:flex-start; gap:6px; padding:2px 0; }
+.emb-feature .emb-icon { width:15px; height:15px; margin-top:4px; }
+.emb-button { border:1px solid var(--action); background:var(--action); color:#fff !important; border-radius:4px; min-height:48px; padding:8px 14px; font-size:15px; font-weight:700; transition:background .18s,border-color .18s; }
+.emb-button:hover:not(:disabled) { background:var(--dark); border-color:var(--dark); }
+.emb-button:disabled { background:#DFE5E3; border-color:#DFE5E3; color:#485654 !important; }
+.emb-secondary { border-color:var(--teal); background:var(--paper); color:var(--dark) !important; }
+.emb-secondary:hover:not(:disabled) { background:var(--mint); color:var(--action) !important; }
+.emb-card-action { margin-top:auto; width:100%; }
+.emb-link { color:var(--dark) !important; text-align:left; border:0; border-radius:4px; background:transparent; padding:4px; min-height:36px; text-decoration:underline; text-underline-offset:3px; align-self:flex-start; }
+.emb-option { display:flex; align-items:flex-start; gap:8px; padding:6px 0; font-size:14px; }
+.emb-app input:is([type=checkbox],[type=radio]) { accent-color:var(--teal); flex:none; width:18px; height:18px; margin:4px 0 0; }
+.emb-modes { border:0; padding:0; min-width:0; }
+.emb-qty { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+.emb-qty-label { margin-right:auto; font-size:14px; }
+.emb-round { width:40px; height:40px; border:1px solid var(--border); border-radius:4px; color:var(--dark) !important; background:var(--paper); }
+.emb-round:disabled { opacity:.52; }
+.emb-qty-value { min-width:30px; text-align:center; font-variant-numeric:tabular-nums; }
+.emb-cart { display:none; }
+.emb-cart-inner { display:flex; flex-direction:column; min-height:0; gap:12px; }
+.emb-lines { list-style:none; padding:0; min-width:0; }
+.emb-line { display:flex; gap:8px; justify-content:space-between; align-items:center; padding:10px 0; border-bottom:1px solid var(--border); }
+.emb-line-main { min-width:0; overflow-wrap:anywhere; }
+.emb-line-end { flex:none; display:flex; align-items:center; gap:5px; flex-wrap:wrap; justify-content:flex-end; }
+.emb-remove { width:34px; height:34px; font-size:18px !important; }
+.emb-total { display:flex; align-items:baseline; justify-content:space-between; gap:3px 12px; flex-wrap:wrap; font-size:13px; }
+.emb-total .emb-amount { font-size:23px; line-height:1.2; }
+.emb-flash { animation:emb-flash .22s ease-out; }
+@keyframes emb-flash { from { background:var(--mint); } to { background:transparent; } }
+.emb-bottom { flex:none; display:grid; gap:6px; background:var(--paper); border-top:1px solid var(--border); padding:7px 12px max(10px,env(safe-area-inset-bottom)); }
+.emb-bottom-row { display:flex; justify-content:space-between; gap:4px 10px; flex-wrap:wrap; align-items:center; }
+.emb-count { white-space:nowrap; font-weight:700 !important; }
+.emb-bottom .emb-total { gap:0 7px; }
+.emb-bottom .emb-total .emb-amount { font-size:19px; }
+.emb-backdrop { position:absolute; inset:0; z-index:1; background:rgba(42,42,42,.35); }
+.emb-drawer { position:absolute; z-index:2; bottom:0; left:8px; right:8px; max-height:100%; overflow-y:auto; overscroll-behavior:contain; border-bottom-left-radius:0; border-bottom-right-radius:0; }
+.emb-drawer-head { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.emb-review, .emb-done { max-width:calc(576px + 2 * clamp(16px,3.5vw,38px)); }
+.emb-box > * + * { margin-top:10px; }
+.emb-form { display:grid; gap:20px; }
+.emb-form > h2, .emb-form-intro { text-align:center; }
+.emb-form #emb-send { width:100%; min-height:52px; }
+.emb-form > * + * { margin-top:0; }
+.emb-form-intro > p + p { margin-top:6px; }
+.emb-field { min-width:0; display:grid; gap:4px; }
+.emb-label, .emb-option[for="emb-agree"] { font-size:15px; font-weight:700; }
+.emb-required { margin-left:4px; color:var(--error); font-size:13px; vertical-align:super; }
+.emb-input { min-width:0; width:100%; height:54px; border:1px solid var(--border); background:white; border-radius:4px; padding:8px 16px; }
+.emb-input::placeholder { color:#757575; opacity:1; }
+.emb-textarea { min-height:160px; resize:vertical; }
+.emb-app .emb-input:focus { border-color:var(--teal); box-shadow:0 0 0 4px var(--mint); }
+.emb-radio { border:0; padding:0; min-width:0; }
+.emb-radio-options { display:flex; flex-wrap:wrap; gap:4px 18px; }
+.emb-error { color:var(--error); font-size:14px; }
+.emb-alert { background:#FFF2F1; border:1px solid var(--error); border-radius:4px; padding:10px; }
+.emb-app [aria-invalid=true] { border-color:var(--error); }
+.emb-trap, .emb-sr { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; }
+@media (min-width:600px) { .emb-tabs { justify-content:safe center; } }
+@media (min-width:960px) {
+  .emb-app { font-size:16px; }
+  .emb-cart { display:block; flex:0 0 320px; padding:24px 16px; background:var(--paper); border-left:1px solid var(--border); overflow-y:auto; overscroll-behavior:contain; }
+  .emb-cart-inner { max-height:100%; border:0; padding:0; }
+  .emb-cart-heading { font-size:16px; }
+  .emb-cart-inner > h2 { margin-top:0; font-size:18px; }
+  .emb-cart-lines { overflow-y:auto; overscroll-behavior:contain; flex:0 1 auto; }
+  .emb-cart-lines .emb-line { display:grid; gap:4px; }
+  .emb-cart-lines .emb-line-main { overflow-wrap:normal; }
+  .emb-cart-lines .emb-line-end { flex-wrap:nowrap; }
+  .emb-line-detail { margin-right:auto; }
+  .emb-bottom, .emb-drawer, .emb-backdrop { display:none; }
+}
+@media (prefers-reduced-motion:reduce) { .emb-app *, .emb-app *::before, .emb-app *::after { animation:none !important; transition:none !important; } }
+</style>
+</head>
+<body>
+<div class="emb-app" id="emb-app">
+  <header class="emb-head">
+    <ol class="emb-steps" aria-label="お問い合わせの手順">
+      <li class="emb-step" aria-current="step"><span class="emb-number">1</span>メニューを選ぶ</li>
+      <li class="emb-step"><span class="emb-number">2</span>内容確認・お問い合わせ</li>
+      <li class="emb-step"><span class="emb-number">3</span>送信完了</li>
+    </ol>
+  </header>
+  <div class="emb-work">
+    <main class="emb-scroll" id="emb-scroll">
+      <section class="emb-content" id="emb-select">
+        <p class="emb-display-title" aria-hidden="true">MENU</p>
+        <h1 class="emb-title" tabindex="-1">メニューを選ぶ</h1>
+        <p class="emb-intro">必要な制作メニューを組み合わせて、税込の目安をご確認ください。</p>
+        <div class="emb-tier-picker" id="emb-tiers" role="group" aria-label="価格帯"></div>
+        <p class="emb-tier-lead emb-small" id="emb-tier-lead"></p>
+        <div class="emb-audience emb-small" id="emb-audience">
+          <strong>\ 個人・個人事業主のための /</strong>
+          <span class="emb-audience-chip">これから事業を始めたい方</span>
+          <span class="emb-audience-chip">お店やサービスをもっと知ってほしい方</span>
+          <span class="emb-audience-chip">必要なものをまとめて相談したい方</span>
+        </div>
+        <div class="emb-tabs" id="emb-tabs" role="tablist" aria-label="制作メニュー"></div>
+        <div class="emb-menu" id="emb-panel" role="tabpanel" tabindex="0"></div>
+      </section>
+      <section class="emb-content emb-review" id="emb-review" hidden>
+        <p class="emb-display-title" aria-hidden="true">CONTACT</p>
+        <h1 class="emb-title" tabindex="-1">内容確認・お問い合わせ</h1>
+        <button class="emb-link" type="button" data-back>← メニューに戻る</button>
+        <div class="emb-box" id="emb-review-cart"></div>
+        <p class="emb-small">表示金額は税込の目安です。内容をお伺いしたうえで、正式なお見積りをご案内します。</p>
+        <form class="emb-box emb-form" id="emb-form" novalidate>
+          <h2>お問い合わせ</h2>
+          <div class="emb-form-intro">
+            <p>「何から伝えればいいか分からない」という段階でも大丈夫です。</p>
+            <p class="emb-small">ご返信までに3営業日ほどお時間をいただいております。<br>3営業日を過ぎてもご連絡がない場合は、恐れ入りますが再度お問い合わせください。</p>
+          </div>
+          <div class="emb-field">
+            <label class="emb-label" for="emb-name">お名前<span class="emb-required" aria-hidden="true">*</span><span class="emb-sr">（必須）</span></label>
+            <input class="emb-input" id="emb-name" name="name" autocomplete="name" required>
+            <p class="emb-error" id="emb-name-error" hidden></p>
+          </div>
+          <div class="emb-field">
+            <label class="emb-label" for="emb-kana">ふりがな（任意）</label>
+            <input class="emb-input" id="emb-kana" name="kana">
+          </div>
+          <div class="emb-field">
+            <label class="emb-label" for="emb-email">メールアドレス<span class="emb-required" aria-hidden="true">*</span><span class="emb-sr">（必須）</span></label>
+            <input class="emb-input" id="emb-email" name="email" type="email" autocomplete="email" required>
+            <p class="emb-error" id="emb-email-error" hidden></p>
+          </div>
+          <div class="emb-field">
+            <label class="emb-label" for="emb-tel">電話番号（任意）</label>
+            <input class="emb-input" id="emb-tel" name="tel" type="tel" autocomplete="tel">
+          </div>
+          <div class="emb-field">
+            <label class="emb-label" for="emb-business">屋号・事業内容（任意）</label>
+            <input class="emb-input" id="emb-business" name="business" autocomplete="organization">
+          </div>
+          <div class="emb-field">
+            <label class="emb-label" for="emb-deadline">ご希望の納期（任意）</label>
+            <select class="emb-input" id="emb-deadline" name="deadline">
+              <option>特になし</option><option>1ヶ月以内</option><option>2〜3ヶ月以内</option><option>時期は相談したい</option>
+            </select>
+          </div>
+          <fieldset class="emb-radio">
+            <legend class="emb-label">ご連絡方法の希望（任意）</legend>
+            <div class="emb-radio-options">
+              <label class="emb-option" for="emb-method-email"><input id="emb-method-email" name="contactMethod" type="radio" value="メール">メール</label>
+              <label class="emb-option" for="emb-method-tel"><input id="emb-method-tel" name="contactMethod" type="radio" value="電話">電話</label>
+              <label class="emb-option" for="emb-method-either"><input id="emb-method-either" name="contactMethod" type="radio" value="どちらでも">どちらでも</label>
+            </div>
+          </fieldset>
+          <div class="emb-field">
+            <label class="emb-label" for="emb-message"><span id="emb-message-label">ご相談内容・ご要望</span>（任意）</label>
+            <textarea class="emb-input emb-textarea" id="emb-message" name="message" aria-labelledby="emb-message-label" placeholder="参考サイトのURLや仕上がりのイメージなどをお聞かせください。"></textarea>
+          </div>
+          <div class="emb-field">
+            <label class="emb-option" for="emb-agree"><input id="emb-agree" name="agree" type="checkbox" required aria-labelledby="emb-agree-label"><span><span id="emb-agree-label">個人情報の取り扱いに同意する<span class="emb-required" aria-hidden="true">*</span><span class="emb-sr">（必須）</span></span></span></label>
+            <p class="emb-error" id="emb-agree-error" hidden></p>
+          </div>
+          <div class="emb-trap" aria-hidden="true" hidden>
+            <label for="emb-website">Webサイト</label>
+            <input id="emb-website" name="website" tabindex="-1" autocomplete="off">
+          </div>
+          <p class="emb-error emb-alert" id="emb-send-error" role="alert" hidden></p>
+          <button class="emb-button" id="emb-send" type="submit">この内容で送信する</button>
+        </form>
+      </section>
+      <section class="emb-content emb-done" id="emb-done" hidden>
+        <p class="emb-display-title" aria-hidden="true">THANK YOU</p>
+        <h1 class="emb-title" tabindex="-1">お問い合わせありがとうございます</h1>
+        <p class="emb-intro">自動返信メールをお送りします。内容を確認のうえ、2〜3営業日以内にご連絡いたします。</p>
+        <p class="emb-small" id="emb-demo-note" hidden>※デモモードのため実際には送信されていません</p>
+        <div class="emb-box" id="emb-sent-cart"></div>
+        <button class="emb-button" type="button" id="emb-reset">メニュー画面に戻る</button>
+      </section>
+    </main>
+    <aside class="emb-cart" id="emb-cart" aria-label="選択中のメニュー"></aside>
+    <div class="emb-backdrop" id="emb-backdrop" aria-hidden="true" hidden></div>
+    <section class="emb-drawer emb-box" id="emb-drawer" aria-label="選択中のメニュー" hidden></section>
+  </div>
+  <footer class="emb-bottom" id="emb-bottom">
+    <div class="emb-bottom-row">
+      <button class="emb-link emb-count" id="emb-count" type="button" aria-expanded="false" aria-controls="emb-drawer">選択中 0件</button>
+      <div class="emb-total" id="emb-bottom-total"></div>
+    </div>
+    <button class="emb-button" id="emb-continue" type="button" disabled>内容を確認して相談する →</button>
+  </footer>
+  <div class="emb-sr" role="status" id="emb-status"></div>
+</div>
+<script>
+(() => {
+  'use strict';
+
+  const ENDPOINT = 'https://script.google.com/macros/s/AKfycbxcAzzwxo5jLtv8-NHMGY2jqNzhn-B9ZiC3qwZH_6hLWM4RgLowU4IVBHxLUVVdyU4/exec';
+  const TIERS = {
+    support: {
+      label: '事業づくり応援プラン', tag: '応援プラン', lead: '個人・個人事業主のための応援価格',
+      categories: {
+        hp: {
+          label: 'ホームページ制作', plans: true, items: {
+            'hp-light': {
+              name: 'ライトプラン', from: true, price: 88000, duration: '約3週間〜1ヶ月半',
+              description: 'まずは小さく始めたい、個人事業主・小規模店舗の方へ',
+              features: ['トップページ＋下層ページ〜3ページ', 'お問い合わせフォーム／プライバシーポリシー', 'SEO基本設定・Googleマップ設定（実店舗の場合）', 'STUDIOテンプレート活用', 'スマホ対応', '打ち合わせ1回／修正2回まで']
+            },
+            'hp-standard': {
+              name: 'スタンダードプラン', from: true, price: 148000, duration: '約1ヶ月〜2ヶ月', recommended: true,
+              description: '魅力や想いを整理し、しっかり伝わるホームページを作りたい方へ',
+              features: ['トップページ＋下層ページ〜5ページ', 'お問い合わせフォーム／プライバシーポリシー', 'SEO基本設定・Googleマップ設定（実店舗の場合）', '完全オリジナルデザイン', 'STUDIO構築・公開まで対応', '打ち合わせ2〜3回／修正3回まで']
+            },
+            'hp-premium': {
+              name: 'プレミアムプラン', from: true, price: 248000, duration: '約2ヶ月〜3ヶ月',
+              description: '構成から運用まで、しっかり伴走して任せたい方へ',
+              features: ['トップページ＋下層ページ10ページ以上', 'お問い合わせフォーム／プライバシーポリシー／サンクスページ', 'SEO設計・Googleマップ設定（実店舗の場合）', '完全オリジナルデザイン', '構成・ライティングサポート付き', 'STUDIO構築・公開まで対応', '打ち合わせ無制限／修正5回まで']
+            }
+          }
+        },
+        lp: {
+          label: 'LP制作', plans: true, items: {
+            'lp-light': {
+              name: 'ライトプラン', from: true, price: 55000, duration: '約2週間〜1ヶ月',
+              description: 'とにかく手軽に、まずは試したい方へ',
+              features: ['1ページ構成・シンプルデザイン', 'レスポンシブ対応（PC or スマホいずれか）', '原稿・写真はお客様にてご用意', 'STUDIO構築・公開まで対応'],
+              option: { label: '両デバイス対応（PC・スマホ両方）', price: 16500 }
+            },
+            'lp-standard': {
+              name: 'スタンダードプラン', from: true, price: 88000, duration: '約3週間〜1ヶ月半', recommended: true,
+              description: '反応率を意識した、しっかりしたLPが欲しい方へ',
+              features: ['完全オリジナルデザイン', 'レスポンシブ対応（PC or スマホいずれか）', '簡単なアニメーション演出', 'STUDIO構築・公開まで対応', '打ち合わせ2〜3回'],
+              option: { label: '両デバイス対応', price: 33000 }
+            },
+            'lp-premium': {
+              name: 'プレミアムプラン', from: true, price: 165000, duration: '約1ヶ月〜2ヶ月',
+              description: '集客・成果に直結する、作り込んだLPを任せたい方へ',
+              features: ['完全オリジナルデザイン＋構成サポート', 'コピーライティングサポート付き', 'レスポンシブ対応（両デバイス込み）', 'アニメーション対応', 'SEO基本設定・サンクスページ制作込み', '打ち合わせ無制限／修正5回まで']
+            }
+          }
+        },
+        web: {
+          label: 'Web用デザイン', items: {
+            banner: { name: 'バナー・Web用画像', from: true, price: 4400, max: 50, unit: '枚', suffix: '／枚', icon: 'image', description: 'SNS広告・Webサイト・各種画像など、用途に合わせて制作します。' },
+            line: { name: 'LINEリッチメニュー', from: true, price: 16500, max: 10, unit: '件', icon: 'chat', description: 'LINE公式アカウントの導線を意識したリッチメニュー画像を制作します。' },
+            sns: {
+              name: 'SNS運用画像', from: true, icon: 'camera', description: '投稿用のバナー・画像を継続的に制作します。',
+              modes: {
+                single: { label: '単品', price: 4400, max: 50, unit: '枚', suffix: '／枚' },
+                monthly: { label: '月間セット', price: 12000, max: 12, unit: 'ヶ月', suffix: '／月' }
+              }
+            }
+          }
+        },
+        print: {
+          label: '印刷物', items: {
+            business: { name: '名刺', from: true, price: 8800, max: 10, unit: 'デザイン', icon: 'id', description: 'データ制作のみ（印刷は別途）', option: { label: '両面にする', detail: '両面', price: 4400, suffix: '／デザイン' } },
+            flyer: { name: 'チラシ', from: true, price: 16500, max: 10, unit: 'デザイン', suffix: '／片面', icon: 'document', description: 'A4サイズ想定。', option: { label: '両面にする', detail: '両面', price: 8800, suffix: '／デザイン' } },
+            brochure: { name: 'パンフレット', from: true, price: 33000, max: 10, unit: 'デザイン', icon: 'book', description: '二つ折り・三つ折り・A4など、ページ数に応じて変動します。', option: { label: '両面にする', detail: '両面', price: 16500, suffix: '／デザイン' } },
+            shop: { name: 'ショップカード', from: true, price: 6600, max: 10, unit: 'デザイン', icon: 'card', description: 'データ制作のみ（印刷は別途）', option: { label: '両面にする', detail: '両面', price: 3300, suffix: '／デザイン' } },
+            cover: { name: '書籍カバー・装丁', from: true, price: 22000, max: 10, unit: 'デザイン', icon: 'book', description: '表紙・カバーデザイン一式' }
+          }
+        }
+      }
+    },
+    regular: {
+      label: '通常価格', tag: '通常価格', lead: '通常のご依頼価格',
+      categories: {
+        hp: {
+          label: 'ホームページ制作', plans: true, items: {
+            'hp-light': {
+              name: 'ライトプラン', price: 198000, from: false, duration: '1ヶ月〜2ヶ月',
+              description: 'とにかく手軽に、名刺代わりのサイトが欲しい方へ',
+              features: ['トップページ＋下層ページ〜5ページ', 'お問い合わせ／プライバシーポリシーページ', 'SEO基本設定・Googleマップ設定（実店舗の場合）', 'STUDIOテンプレートを活用したデザイン', '打ち合わせ1回／更新編集 1モデルまで']
+            },
+            'hp-standard': {
+              name: 'スタンダードプラン', price: 258000, from: false, duration: '1ヶ月半〜2ヶ月半', recommended: true,
+              description: 'こだわったオリジナルデザインで、事業の想いを形にしたい方へ',
+              features: ['トップページ＋下層ページ〜10ページ', 'お問い合わせ／プライバシーポリシーページ', 'SEO基本設定・Googleマップ設定（実店舗の場合）', '完全オリジナルデザイン・アニメーション対応', '打ち合わせ3回／更新編集 3モデルまで']
+            },
+            'hp-premium': {
+              name: 'プレミアムプラン', price: 348000, from: false, duration: '2ヶ月〜3ヶ月',
+              description: '構成〜デザインまで、すべてお任せしたい方へ',
+              features: ['トップページ＋下層ページ10ページ以上', 'お問い合わせ／プライバシー／サンキューページ', 'SEO対策・Googleマップ設定（実店舗の場合）', '完全オリジナルデザイン・ライティングサポート付き', '打ち合わせ無制限／更新編集 5モデルまで']
+            }
+          }
+        },
+        lp: {
+          label: 'LP制作', plans: true, items: {
+            'lp-light': {
+              name: 'ライトプラン', price: 88000, from: true, duration: '3週間〜1ヶ月半',
+              description: 'とにかく手軽に、名刺代わりのLPが欲しい方へ',
+              features: ['1ページ構成・シンプルなデザイン', 'レスポンシブ対応（PC or スマホいずれか）', '文章・写真はお客様にてご用意', 'STUDIO構築・公開まで対応'],
+              option: { label: '両デバイス対応', price: 16500 }
+            },
+            'lp-standard': {
+              name: 'スタンダードプラン', price: 198000, from: true, duration: '1ヶ月〜2ヶ月', recommended: true,
+              description: '反応率を意識した、しっかりとしたLPが欲しい方へ',
+              features: ['完全オリジナルデザイン', 'レスポンシブ対応（PC or スマホいずれか）', '簡単なアニメーション演出・打ち合わせ2〜3回', 'STUDIO構築・公開まで対応'],
+              option: { label: '両デバイス対応', price: 33000 }
+            },
+            'lp-premium': {
+              name: 'プレミアムプラン', price: 330000, from: true, duration: '1ヶ月半〜2ヶ月半', priceNote: '税込・両デバイス込み',
+              description: '集客・成果に直結する、作り込んだLPを丸ごと任せたい方へ',
+              features: ['完全オリジナルデザイン＋ディレクション', 'コピーライティングサポート付き', 'レスポンシブ対応（両デバイス込み）', 'アニメーション対応・打ち合わせ無制限', 'SEO対策・サンキューページ制作込み']
+            }
+          }
+        },
+        web: {
+          label: 'Web用デザイン', items: {
+            banner: { name: 'バナー・Web用画像', price: 5500, from: true, max: 50, unit: '枚', suffix: '／枚', icon: 'image', description: 'SNS広告・YouTubeサムネイルなど、用途に合わせて制作します' },
+            line: { name: 'LINEリッチメニュー', price: 33000, from: true, max: 10, unit: '件', icon: 'chat', description: 'LINE公式アカウントのリッチメニュー画像を制作します' },
+            sns: {
+              name: 'SNS運用画像', from: true, icon: 'camera', description: '投稿用のバナー・画像を継続的に制作します',
+              modes: {
+                single: { label: '単品', price: 5500, max: 50, unit: '枚', suffix: '／枚' },
+                monthly: { label: '月間セット', price: 16500, max: 12, unit: 'ヶ月', suffix: '／月' }
+              }
+            }
+          }
+        },
+        print: {
+          label: '印刷物', items: {
+            business: { name: '名刺', price: 11000, from: true, max: 10, unit: 'デザイン', icon: 'id', description: 'データ制作のみ（印刷は別途）', option: { label: '両面にする', detail: '両面', price: 5500, suffix: '／デザイン' } },
+            flyer: { name: 'チラシ', price: 22000, from: true, max: 10, unit: 'デザイン', suffix: '／片面', icon: 'document', description: 'A4サイズを想定。', option: { label: '両面にする', detail: '両面', price: 11000, suffix: '／デザイン' } },
+            brochure: { name: 'パンフレット', price: 55000, from: true, max: 10, unit: 'デザイン', icon: 'book', description: '三つ折り・A4を想定。ページ数に応じて変動します', option: { label: '両面にする', detail: '両面', price: 27500, suffix: '／デザイン' } },
+            shop: { name: 'ショップカード', price: 8800, from: true, max: 10, unit: 'デザイン', icon: 'card', description: 'データ制作のみ（印刷は別途）', option: { label: '両面にする', detail: '両面', price: 4400, suffix: '／デザイン' } },
+            cover: { name: '書籍カバー・装丁', price: 33000, from: true, max: 10, unit: 'デザイン', icon: 'book', description: '表紙・カバーデザイン一式' }
+          }
+        }
+      },
+      notes: [
+        '※ 上記はデザイン制作費のみの金額です。印刷・用紙代は別途となります。',
+        '※ 上記料金はすべて税込みです。',
+        '※ データ形式（PSD・AI等）でのお渡しをご希望の場合は、別途お見積りいたします。',
+        '※ 内容によって金額が変動する場合がございます。まずはお気軽にご相談ください。'
+      ]
+    }
+  };
+
+  // 各価格帯で、この一覧のカテゴリはそれぞれ1プランまで。価格帯をまたぐ選択は独立。
+  // 複数プランを許可するカテゴリは、この一覧から外してください。
+  const SINGLE_PLAN_CATEGORIES = ['hp', 'lp'];
+
+  const ICONS = {
+    check: 'M4 12l5 5L20 6',
+    image: 'M3 4h18v16H3z M3 17l5-5 4 4 4-6 5 7 M8 8h.01',
+    chat: 'M21 4H3v13h5l4 4v-4h9z M7 9h10 M7 13h7',
+    camera: 'M3 7h5l2-3h4l2 3h5v13H3z M16 13a4 4 0 1 1-8 0 4 4 0 0 1 8 0z',
+    id: 'M2 5h20v14H2z M7 11h.01 M4 15c1-3 5-3 6 0 M13 10h6 M13 14h6',
+    document: 'M5 2h10l4 4v16H5z M14 2v5h5 M8 11h8 M8 15h8',
+    book: 'M12 6C9 3 5 3 2 4v15c4-1 7 0 10 2 3-2 6-3 10-2V4c-3-1-7-1-10 2v15',
+    card: 'M2 6h20v13H2z M2 10h20 M5 15h5'
+  };
+  const STORAGE = 'enishione-menu-cart-v2';
+  const tierIds = Object.keys(TIERS);
+  const ids = Object.keys(TIERS.support.categories);
+  const cartKey = (tier, item) => tier + ':' + item;
+  const byId = (id) => document.getElementById('emb-' + id);
+  const app = byId('app');
+  const tabs = byId('tabs');
+  const panel = byId('panel');
+  const scroll = byId('scroll');
+  const form = byId('form');
+  const drawer = byId('drawer');
+  const backdrop = byId('backdrop');
+  const countButton = byId('count');
+  const send = byId('send');
+  const sections = ['select', 'review', 'done'].map(byId);
+  const desktop = matchMedia('(min-width:960px)');
+  const expanded = new Set();
+  const money = (price) => '¥' + price.toLocaleString('ja-JP');
+  const estimate = (price, from = true) => money(price) + (from ? '〜' : '');
+  const defaultMode = (item) => item.modes ? Object.keys(item.modes)[0] : '';
+  let cart = restore();
+  let category = ids[0];
+  let activeTier = tierIds[0];
+  const modeChoices = Object.create(null);
+  for (const [id, entry] of Object.entries(cart)) {
+    if (entry.mode) modeChoices[id] = entry.mode;
+  }
+  let step = 0;
+  let sending = false;
+  let previousTotal = 0;
+
+  function restore() {
+    const restored = Object.create(null);
+    try {
+      const saved = JSON.parse(sessionStorage.getItem(STORAGE) || '{}');
+      for (const tier of tierIds) {
+        for (const [category, group] of Object.entries(TIERS[tier].categories)) {
+          for (const [itemId, item] of Object.entries(group.items)) {
+            const id = cartKey(tier, itemId);
+            const entry = saved?.[id];
+            if (!entry || !Number.isInteger(entry.quantity) || entry.quantity < 1) continue;
+            const mode = item.modes && Object.hasOwn(item.modes, entry.mode) ? entry.mode : defaultMode(item);
+            const rate = item.modes ? item.modes[mode] : item;
+            const quantity = Math.min(rate.max || 1, entry.quantity);
+            restored[id] = { quantity, mode, option: Boolean(item.option && entry.option === true) };
+            if (SINGLE_PLAN_CATEGORIES.includes(category)) break;
+          }
+        }
+      }
+    } catch {
+      // Some embedded browsers block sessionStorage.
+    }
+    return restored;
+  }
+
+  function persist() {
+    try {
+      if (Object.keys(cart).length) sessionStorage.setItem(STORAGE, JSON.stringify(cart));
+      else sessionStorage.removeItem(STORAGE);
+    } catch {
+      // The in-memory cart still works.
+    }
+  }
+
+  function lines() {
+    const entries = [];
+    for (const tier of tierIds) {
+      const { label: tierLabel, categories } = TIERS[tier];
+      for (const group of Object.values(categories)) {
+        for (const [itemId, item] of Object.entries(group.items)) {
+          const id = cartKey(tier, itemId);
+          const entry = cart[id];
+          if (!entry) continue;
+          const rate = item.modes ? item.modes[entry.mode] : item;
+          const detail = [
+            rate.label,
+            rate.unit && entry.quantity + rate.unit,
+            entry.option && (item.option.detail || item.option.label)
+          ].filter(Boolean).join(' ／ ');
+          const price = (rate.price + (entry.option ? item.option.price : 0)) * entry.quantity;
+          entries.push({ id, tier, tierLabel, category: group.label, name: item.name, detail, price, from: item.from !== false });
+        }
+      }
+    }
+    return entries;
+  }
+
+  function el(tag, className, text) {
+    const node = document.createElement(tag);
+    if (className) node.className = className;
+    if (text !== undefined) node.textContent = text;
+    return node;
+  }
+
+  function button(label, className, key, click) {
+    const node = el('button', className, label);
+    node.type = 'button';
+    if (key) node.dataset.focus = key;
+    node.addEventListener('click', click);
+    return node;
+  }
+
+  function icon(name) {
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('class', 'emb-icon');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('aria-hidden', 'true');
+    const path = document.createElementNS(ns, 'path');
+    for (const [key, value] of Object.entries({ d: ICONS[name], fill: 'none', stroke: 'currentColor', 'stroke-width': '1.7', 'stroke-linecap': 'round', 'stroke-linejoin': 'round' })) {
+      path.setAttribute(key, value);
+    }
+    svg.append(path);
+    return svg;
+  }
+
+  function renderTiers() {
+    const entries = lines();
+    byId('tiers').replaceChildren(...tierIds.map((tier) => {
+      const { label } = TIERS[tier];
+      const count = entries.filter((item) => item.tier === tier).length;
+      const control = button(label, 'emb-tier', 'tier-' + tier, () => {
+        activeTier = tier;
+        renderTiers();
+        renderTabs();
+        renderMenu();
+        focusKey('tier-' + tier);
+      });
+      if (tier === 'support') control.append(el('span', 'emb-tier-gold', '応援価格'));
+      control.append(el('span', 'emb-badge', String(count)));
+      control.setAttribute('aria-pressed', String(tier === activeTier));
+      control.setAttribute('aria-label', label + '、選択中 ' + count + '件');
+      return control;
+    }));
+    byId('tier-lead').textContent = TIERS[activeTier].lead;
+    byId('audience').hidden = activeTier !== 'support';
+  }
+
+  function renderNotes(notes) {
+    const list = el('ul', 'emb-notes emb-small');
+    list.append(...notes.map((note) => el('li', '', note)));
+    return list;
+  }
+
+  function renderTabs() {
+    const tabScroll = tabs.scrollLeft;
+    tabs.replaceChildren(...ids.map((key) => {
+      const group = TIERS[activeTier].categories[key];
+      const tab = button(group.label, 'emb-tab', 'tab-' + key, () => activate(key));
+      const count = Object.keys(group.items).filter((id) => cart[cartKey(activeTier, id)]).length;
+      tab.append(el('span', 'emb-badge', String(count)));
+      tab.id = 'emb-tab-' + key;
+      tab.setAttribute('role', 'tab');
+      tab.setAttribute('aria-selected', String(category === key));
+      tab.setAttribute('aria-controls', panel.id);
+      tab.setAttribute('aria-label', group.label + '、選択中 ' + count + '件');
+      tab.tabIndex = category === key ? 0 : -1;
+      return tab;
+    }));
+    tabs.scrollLeft = tabScroll;
+    panel.setAttribute('aria-labelledby', 'emb-tab-' + category);
+  }
+
+  function focusKey(key, scope = app) {
+    if (!key) return false;
+    const target = Array.from(scope.querySelectorAll('[data-focus]')).find((node) => node.dataset.focus === key);
+    if (!target || target.disabled) return false;
+    target.focus();
+    return true;
+  }
+
+  function activate(key) {
+    category = key;
+    renderTabs();
+    renderMenu();
+    focusKey('tab-' + key);
+  }
+
+  tabs.addEventListener('keydown', (event) => {
+    const index = ids.indexOf(category);
+    const targets = { ArrowRight: (index + 1) % ids.length, ArrowLeft: (index + ids.length - 1) % ids.length, Home: 0, End: ids.length - 1 };
+    if (!Object.hasOwn(targets, event.key)) return;
+    event.preventDefault();
+    activate(ids[targets[event.key]]);
+  });
+
+  function updateCart(key, fallback) {
+    persist();
+    renderTiers();
+    renderTabs();
+    renderMenu();
+    renderCart(true);
+    if (!focusKey(key) && fallback) focusKey(fallback);
+  }
+
+  function renderMenu() {
+    const { categories, notes } = TIERS[activeTier];
+    const group = categories[category];
+    const isPlan = group.plans === true;
+    const grid = el('div', isPlan ? 'emb-grid emb-plan-grid' : 'emb-grid');
+    for (const [itemId, item] of Object.entries(group.items)) {
+      const id = cartKey(activeTier, itemId);
+      const entry = cart[id];
+      const mode = entry?.mode || modeChoices[id] || defaultMode(item);
+      const addItem = (option) => {
+        if (SINGLE_PLAN_CATEGORIES.includes(category)) {
+          Object.keys(group.items).forEach((plan) => delete cart[cartKey(activeTier, plan)]);
+        }
+        cart[id] = { quantity: 1, option, mode: modeChoices[id] || mode };
+      };
+      const card = el('article', 'emb-card' + (item.recommended ? ' emb-recommended' : '') + (entry ? ' emb-selected' : ''));
+      const heading = el('div', 'emb-card-top');
+      if (item.icon) heading.append(icon(item.icon));
+      heading.append(el('h2', 'emb-card-title', item.name));
+      if (item.recommended) heading.append(el('span', 'emb-recommend', 'おすすめ'));
+      card.append(heading);
+      if (!item.modes) {
+        const price = el('p', 'emb-price', estimate(item.price, item.from));
+        if (item.suffix) price.append(el('span', 'emb-price-small', item.suffix));
+        card.append(price);
+        if (item.priceNote) card.append(el('p', 'emb-small', item.priceNote));
+      }
+      if (item.duration) card.append(el('p', 'emb-small', '制作期間 ' + item.duration));
+      card.append(el('p', '', item.description));
+      if (item.features) {
+        const list = el('ul', 'emb-features');
+        list.id = 'emb-features-' + id;
+        list.hidden = !desktop.matches && !expanded.has(id);
+        for (const feature of item.features) {
+          const li = el('li', 'emb-feature');
+          li.append(icon('check'), feature);
+          list.append(li);
+        }
+        const disclosure = button(list.hidden ? '詳細を見る' : '詳細を閉じる', 'emb-link', 'details-' + id, () => {
+          list.hidden = !list.hidden;
+          if (list.hidden) expanded.delete(id);
+          else expanded.add(id);
+          disclosure.textContent = list.hidden ? '詳細を見る' : '詳細を閉じる';
+          disclosure.setAttribute('aria-expanded', String(!list.hidden));
+        });
+        disclosure.setAttribute('aria-expanded', String(!list.hidden));
+        disclosure.setAttribute('aria-controls', list.id);
+        if (!desktop.matches) card.append(disclosure);
+        card.append(list);
+      }
+      if (item.modes) card.append(renderModes(id, item, mode));
+      if (item.option && (entry || !isPlan)) {
+        const input = el('input');
+        input.type = 'checkbox';
+        input.checked = entry?.option ?? false;
+        input.dataset.focus = 'option-' + id;
+        input.addEventListener('change', () => {
+          if (entry) entry.option = input.checked;
+          else if (input.checked) addItem(true);
+          updateCart(input.dataset.focus);
+        });
+        const label = el('label', 'emb-option');
+        label.append(input, el('span', '', item.option.label + ' +' + money(item.option.price) + (item.option.suffix || '')));
+        card.append(label);
+      }
+      const rate = item.modes ? item.modes[mode] : item;
+      if (entry && rate.max) card.append(renderQuantity(id, item, rate, entry));
+      const label = isPlan
+        ? (entry ? '選択中 ✓' : 'このプランを選ぶ')
+        : (entry ? '追加済み ✓' : '追加する');
+      const toggle = button(label, 'emb-button emb-card-action' + (entry ? ' emb-secondary' : ''), 'toggle-' + id, () => {
+        if (entry) delete cart[id];
+        else addItem(false);
+        updateCart('toggle-' + id);
+      });
+      toggle.setAttribute('aria-pressed', String(Boolean(entry)));
+      toggle.setAttribute('aria-label', item.name + '：' + label);
+      card.append(toggle);
+      grid.append(card);
+    }
+    panel.replaceChildren(grid);
+    if (notes) panel.append(renderNotes(notes));
+  }
+
+  function renderModes(id, item, selectedMode) {
+    const field = el('fieldset', 'emb-modes');
+    field.append(el('legend', 'emb-small', '制作形式'));
+    for (const [mode, rate] of Object.entries(item.modes)) {
+      const radio = el('input');
+      radio.type = 'radio';
+      radio.name = 'emb-sns-mode';
+      radio.value = mode;
+      radio.checked = selectedMode === mode;
+      radio.dataset.focus = 'mode-' + mode;
+      radio.addEventListener('change', () => {
+        modeChoices[id] = mode;
+        if (cart[id]) {
+          cart[id].mode = mode;
+          cart[id].quantity = Math.min(cart[id].quantity, rate.max);
+          updateCart(radio.dataset.focus);
+        }
+      });
+      const label = el('label', 'emb-option');
+      label.append(radio, el('span', '', rate.label + ' ' + estimate(rate.price, item.from) + rate.suffix));
+      field.append(label);
+    }
+    return field;
+  }
+
+  function renderQuantity(id, item, rate, entry) {
+    const row = el('div', 'emb-qty');
+    row.append(el('span', 'emb-qty-label', '数量'));
+    const adjust = (delta) => {
+      entry.quantity = Math.max(1, Math.min(rate.max, entry.quantity + delta));
+      updateCart('qty-' + id + '-' + delta, 'qty-' + id + '-' + -delta);
+    };
+    const minus = button('−', 'emb-round', 'qty-' + id + '--1', () => adjust(-1));
+    const plus = button('+', 'emb-round', 'qty-' + id + '-1', () => adjust(1));
+    minus.setAttribute('aria-label', item.name + 'の数量を減らす');
+    plus.setAttribute('aria-label', item.name + 'の数量を増やす');
+    minus.disabled = entry.quantity <= 1;
+    plus.disabled = entry.quantity >= rate.max;
+    row.append(minus, el('span', 'emb-qty-value', entry.quantity + rate.unit), plus);
+    return row;
+  }
+
+  function totalContent(node, total, from, flash = false) {
+    const amount = el('strong', 'emb-amount' + (flash ? ' emb-flash' : ''), estimate(total, from));
+    node.replaceChildren(el('span', '', '合計（税込・目安）'), amount);
+    return node;
+  }
+
+  function cartList(entries, surface) {
+    const list = el('ul', 'emb-lines' + (surface === 'desktop' ? ' emb-cart-lines' : ''));
+    for (const [index, item] of entries.entries()) {
+      const row = el('li', 'emb-line');
+      const main = el('div', 'emb-line-main');
+      const category = el('p', 'emb-small');
+      const tag = el('span', 'emb-tier-tag', TIERS[item.tier].tag);
+      tag.dataset.tier = item.tier;
+      category.append(tag, item.category);
+      main.append(category, el('strong', '', item.name));
+      const end = el('div', 'emb-line-end');
+      if (item.detail) {
+        const detail = el('p', 'emb-small emb-line-detail', item.detail);
+        (surface === 'desktop' ? end : main).append(detail);
+      }
+      end.append(el('span', 'emb-amount', estimate(item.price, item.from)));
+      if (surface) {
+        const remove = button('×', 'emb-round emb-remove', surface + '-remove-' + item.id, () => {
+          if (sending) return;
+          delete cart[item.id];
+          updateCart();
+          const adjacent = entries[index + 1] || entries[index - 1];
+          if (adjacent && focusKey(surface + '-remove-' + adjacent.id)) return;
+          if (surface === 'drawer') focusKey('drawer-close');
+          else if (surface === 'review') focusKey('empty-back');
+          else focusKey('tab-' + category);
+        });
+        remove.setAttribute('aria-label', item.tierLabel + ' ' + item.category + ' ' + item.name + 'を削除');
+        remove.disabled = sending;
+        end.append(remove);
+      }
+      row.append(main, end);
+      list.append(row);
+    }
+    return list;
+  }
+
+  function continueButton(entries) {
+    const node = button('内容を確認して相談する →', 'emb-button', 'desktop-continue', () => setStep(1));
+    node.disabled = !entries.length;
+    return node;
+  }
+
+  function renderCart(announce = false) {
+    const entries = lines();
+    const total = entries.reduce((sum, entry) => sum + entry.price, 0);
+    const from = entries.some((item) => item.from);
+    const flash = announce && previousTotal !== total;
+    previousTotal = total;
+    countButton.textContent = '選択中 ' + entries.length + '件';
+    byId('continue').disabled = !entries.length;
+    totalContent(byId('bottom-total'), total, from, flash);
+    const desktopPanel = el('div', 'emb-box emb-cart-inner');
+    const cartHeading = el('p', 'emb-cart-heading', 'CART');
+    cartHeading.setAttribute('aria-hidden', 'true');
+    desktopPanel.append(cartHeading, el('h2', '', '選択中 ' + entries.length + '件'));
+    desktopPanel.append(entries.length ? cartList(entries, 'desktop') : el('p', 'emb-small', 'メニューを選ぶと、ここに表示されます。'));
+    desktopPanel.append(totalContent(el('div', 'emb-total'), total, from, flash), continueButton(entries));
+    byId('cart').replaceChildren(desktopPanel);
+    if (!drawer.hidden) {
+      const head = el('div', 'emb-drawer-head');
+      const close = button('×', 'emb-round', 'drawer-close', () => toggleDrawer(false));
+      close.setAttribute('aria-label', '選択中のメニューを閉じる');
+      head.append(el('h2', '', '選択中 ' + entries.length + '件'), close);
+      drawer.replaceChildren(head, entries.length ? cartList(entries, 'drawer') : el('p', 'emb-small', '選択中のメニューはありません。'));
+    }
+    if (step === 1) {
+      const summary = byId('review-cart');
+      summary.replaceChildren(el('h2', '', '選択したメニュー'));
+      if (entries.length) {
+        summary.append(cartList(entries, 'review'), totalContent(el('div', 'emb-total'), total, from, flash));
+        if (entries.some((item) => item.tier === 'regular')) summary.append(renderNotes(TIERS.regular.notes));
+      } else summary.append(el('p', '', '選択中のメニューはありません。メニューに戻って項目を選んでください。'),
+        button('メニューに戻る', 'emb-button emb-secondary', 'empty-back', () => setStep(0)));
+      form.hidden = !entries.length;
+    }
+    if (announce) byId('status').textContent = '選択中 ' + entries.length + '件、合計 ' + estimate(total, from);
+  }
+
+  function toggleDrawer(open, moveFocus = true) {
+    drawer.hidden = backdrop.hidden = !open;
+    countButton.setAttribute('aria-expanded', String(open));
+    if (open) {
+      renderCart();
+      if (moveFocus) focusKey('drawer-close');
+    } else if (moveFocus) countButton.focus();
+  }
+
+  function setStep(next) {
+    step = next;
+    toggleDrawer(false, false);
+    sections.forEach((section, index) => {
+      section.hidden = index !== step;
+      const indicator = app.querySelectorAll('.emb-step')[index];
+      if (index === step) indicator.setAttribute('aria-current', 'step');
+      else indicator.removeAttribute('aria-current');
+    });
+    byId('cart').hidden = byId('bottom').hidden = step !== 0;
+    if (step === 0) {
+      renderTiers();
+      renderTabs();
+      renderMenu();
+    }
+    renderCart();
+    scroll.scrollTop = 0;
+    sections[step].querySelector('h1').focus({ preventScroll: true });
+  }
+
+  function fieldError(field, message) {
+    const input = byId(field);
+    const hint = byId(field + '-error');
+    hint.textContent = message;
+    hint.hidden = !message;
+    if (message) {
+      input.setAttribute('aria-invalid', 'true');
+      input.setAttribute('aria-describedby', hint.id);
+    } else {
+      input.removeAttribute('aria-invalid');
+      input.removeAttribute('aria-describedby');
+    }
+  }
+
+  function validation() {
+    const email = byId('email');
+    const errors = {
+      name: byId('name').value.trim() ? '' : 'お名前を入力してください。',
+      email: !email.value.trim() ? 'メールアドレスを入力してください。'
+        : (email.validity.typeMismatch || !/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(email.value.trim()) ? 'メールアドレスの形式を確認してください。' : ''),
+      agree: byId('agree').checked ? '' : '個人情報の取り扱いへの同意が必要です。'
+    };
+    for (const [field, message] of Object.entries(errors)) fieldError(field, message);
+    const first = Object.keys(errors).find((field) => errors[field]);
+    if (first) byId(first).focus();
+    return !first;
+  }
+
+  function makePayload() {
+    const items = lines().map(({ id, ...item }) => item);
+    const fields = Object.fromEntries(new FormData(form));
+    for (const key of Object.keys(fields)) fields[key] = fields[key].trim();
+    fields.agree = byId('agree').checked;
+    fields.contactMethod ||= '';
+    let page = '';
+    try { page = location.href; } catch { /* The embed may restrict access. */ }
+    return { items, total: items.reduce((sum, item) => sum + item.price, 0), form: fields, page, sentAt: new Date().toISOString() };
+  }
+
+  function setSending(busy) {
+    sending = busy;
+    form.setAttribute('aria-busy', String(busy));
+    send.disabled = busy;
+    send.textContent = busy ? '送信中…' : 'この内容で送信する';
+    sections[1].querySelectorAll('[data-back], .emb-remove').forEach((node) => { node.disabled = busy; });
+  }
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (sending || !lines().length || !validation()) return;
+    const alert = byId('send-error');
+    alert.hidden = true;
+    const payload = makePayload();
+    setSending(true);
+    try {
+      if (!ENDPOINT) {
+        await new Promise((resolve) => setTimeout(resolve, 800));
+        console.info('お問い合わせデモ', payload);
+      } else {
+        const response = await fetch(ENDPOINT, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+        if (!response.ok || (await response.json()).ok !== true) throw new Error('Submission failed');
+      }
+      const summary = byId('sent-cart');
+      summary.replaceChildren(el('h2', '', '送信内容'), cartList(payload.items),
+        totalContent(el('div', 'emb-total'), payload.total, payload.items.some((item) => item.from)),
+        el('p', 'emb-small', 'お名前：' + payload.form.name),
+        el('p', 'emb-small', 'メールアドレス：' + payload.form.email));
+      byId('demo-note').hidden = Boolean(ENDPOINT);
+      cart = Object.create(null);
+      persist();
+      setStep(2);
+    } catch {
+      alert.hidden = false;
+      alert.textContent = '送信できませんでした。入力内容は保持されています。時間をおいて、もう一度送信してください。';
+    } finally {
+      setSending(false);
+    }
+  });
+
+  countButton.addEventListener('click', () => toggleDrawer(drawer.hidden));
+  backdrop.addEventListener('click', () => toggleDrawer(false));
+  desktop.addEventListener('change', () => {
+    const focused = panel.contains(document.activeElement) ? document.activeElement.dataset.focus : '';
+    renderMenu();
+    if (!focusKey(focused) && focused) panel.focus();
+    if (desktop.matches && !drawer.hidden) {
+      toggleDrawer(false, false);
+      if (!focusKey('desktop-continue')) focusKey('tab-' + category);
+    }
+  });
+  app.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && !drawer.hidden) toggleDrawer(false);
+  });
+  byId('continue').addEventListener('click', () => setStep(1));
+  app.querySelector('[data-back]').addEventListener('click', () => setStep(0));
+  byId('reset').addEventListener('click', () => {
+    form.reset();
+    expanded.clear();
+    category = ids[0];
+    activeTier = tierIds[0];
+    for (const id of Object.keys(modeChoices)) delete modeChoices[id];
+    setStep(0);
+  });
+
+  renderTiers();
+  renderTabs();
+  renderMenu();
+  renderCart();
+})();
+</script>
+</body>
+</html>
