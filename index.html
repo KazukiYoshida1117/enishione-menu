@@ -89,6 +89,12 @@ html, body { height:100%; margin:0; }
 .emb-button:disabled { background:#DFE5E3; border-color:#DFE5E3; color:#485654 !important; }
 .emb-secondary { border-color:var(--teal); background:var(--paper); color:var(--dark) !important; }
 .emb-secondary:hover:not(:disabled) { background:var(--mint); color:var(--action) !important; }
+.emb-consult-card { padding:16px; background:var(--paper); border:1px solid var(--border); border-left:3px solid var(--teal); border-radius:4px; }
+.emb-consult-card h2 { font-size:17px; font-weight:700; }
+.emb-app .emb-consult-card p { margin:8px 0 12px; font-size:14px; }
+.emb-consult-card .emb-secondary { max-width:100%; border-color:var(--action); color:var(--action) !important; }
+.emb-consult-link { font-size:14px; }
+@media (width < 960px) { .emb-consult-card .emb-button { width:100%; } }
 .emb-card-action { margin-top:auto; width:100%; }
 .emb-link { color:var(--dark) !important; text-align:left; border:0; border-radius:4px; background:transparent; padding:4px; min-height:36px; text-decoration:underline; text-underline-offset:3px; align-self:flex-start; }
 .emb-option { display:flex; align-items:flex-start; gap:8px; padding:6px 0; font-size:14px; }
@@ -170,6 +176,11 @@ html, body { height:100%; margin:0; }
         <p class="emb-display-title" aria-hidden="true">MENU</p>
         <h1 class="emb-title" tabindex="-1">メニューを選ぶ</h1>
         <p class="emb-intro">必要な制作メニューを組み合わせて、税込の目安をご確認ください。</p>
+        <div class="emb-consult-card" id="emb-consult-card">
+          <h2>まだ決まっていない方へ</h2>
+          <p>どのメニューが合うか分からない、まずは話を聞いてみたい――そんな段階でも大丈夫です。メニューを選ばずに、ご相談だけでもお気軽にどうぞ。</p>
+          <button class="emb-button emb-secondary" id="emb-consult" type="button">メニューを選ばずに相談する →</button>
+        </div>
         <div class="emb-tier-picker" id="emb-tiers" role="group" aria-label="価格帯"></div>
         <p class="emb-tier-lead emb-small" id="emb-tier-lead"></p>
         <div class="emb-audience emb-small" id="emb-audience">
@@ -184,9 +195,9 @@ html, body { height:100%; margin:0; }
       <section class="emb-content emb-review" id="emb-review" hidden>
         <p class="emb-display-title" aria-hidden="true">CONTACT</p>
         <h1 class="emb-title" tabindex="-1">内容確認・お問い合わせ</h1>
-        <button class="emb-link" type="button" data-back>← メニューに戻る</button>
+        <button class="emb-link" type="button" id="emb-back" data-back>← メニューに戻る</button>
         <div class="emb-box" id="emb-review-cart"></div>
-        <p class="emb-small">表示金額は税込の目安です。内容をお伺いしたうえで、正式なお見積りをご案内します。</p>
+        <p class="emb-small" id="emb-review-estimate">表示金額は税込の目安です。内容をお伺いしたうえで、正式なお見積りをご案内します。</p>
         <form class="emb-box emb-form" id="emb-form" novalidate>
           <h2>お問い合わせ</h2>
           <div class="emb-form-intro">
@@ -263,7 +274,7 @@ html, body { height:100%; margin:0; }
       <button class="emb-link emb-count" id="emb-count" type="button" aria-expanded="false" aria-controls="emb-drawer">選択中 0件</button>
       <div class="emb-total" id="emb-bottom-total"></div>
     </div>
-    <button class="emb-button" id="emb-continue" type="button" disabled>内容を確認して相談する →</button>
+    <button class="emb-button" id="emb-continue" type="button">メニューを選ばずに相談する →</button>
   </footer>
   <div class="emb-sr" role="status" id="emb-status"></div>
 </div>
@@ -443,6 +454,10 @@ html, body { height:100%; margin:0; }
   const backdrop = byId('backdrop');
   const countButton = byId('count');
   const send = byId('send');
+  const message = byId('message');
+  const menuPlaceholder = message.placeholder;
+  const consultAction = 'メニューを選ばずに相談する';
+  const consultSummary = 'ご相談のみ（メニューは未選択）';
   const sections = ['select', 'review', 'done'].map(byId);
   const desktop = matchMedia('(min-width:960px)');
   const expanded = new Set();
@@ -780,7 +795,7 @@ html, body { height:100%; margin:0; }
           const adjacent = entries[index + 1] || entries[index - 1];
           if (adjacent && focusKey(surface + '-remove-' + adjacent.id)) return;
           if (surface === 'drawer') focusKey('drawer-close');
-          else if (surface === 'review') focusKey('empty-back');
+          else if (surface === 'review') byId('back').focus();
           else focusKey('tab-' + category);
         });
         remove.setAttribute('aria-label', item.tierLabel + ' ' + item.category + ' ' + item.name + 'を削除');
@@ -793,12 +808,6 @@ html, body { height:100%; margin:0; }
     return list;
   }
 
-  function continueButton(entries) {
-    const node = button('内容を確認して相談する →', 'emb-button', 'desktop-continue', () => setStep(1));
-    node.disabled = !entries.length;
-    return node;
-  }
-
   function renderCart(announce = false) {
     const entries = lines();
     const total = entries.reduce((sum, entry) => sum + entry.price, 0);
@@ -806,14 +815,21 @@ html, body { height:100%; margin:0; }
     const flash = announce && previousTotal !== total;
     previousTotal = total;
     countButton.textContent = '選択中 ' + entries.length + '件';
-    byId('continue').disabled = !entries.length;
+    const consultOnly = !entries.length;
+    byId('consult-card').hidden = !consultOnly;
+    byId('continue').textContent = consultOnly ? consultAction + ' →' : '内容を確認して相談する →';
     totalContent(byId('bottom-total'), total, from, flash);
     const desktopPanel = el('div', 'emb-box emb-cart-inner');
     const cartHeading = el('p', 'emb-cart-heading', 'CART');
     cartHeading.setAttribute('aria-hidden', 'true');
     desktopPanel.append(cartHeading, el('h2', '', '選択中 ' + entries.length + '件'));
-    desktopPanel.append(entries.length ? cartList(entries, 'desktop') : el('p', 'emb-small', 'メニューを選ぶと、ここに表示されます。'));
-    desktopPanel.append(totalContent(el('div', 'emb-total'), total, from, flash), continueButton(entries));
+    if (consultOnly) {
+      desktopPanel.append(el('p', 'emb-small', 'メニューを選ぶと、ここに表示されます。'),
+        button(consultAction, 'emb-link emb-consult-link', 'desktop-continue', () => setStep(1)));
+    } else {
+      desktopPanel.append(cartList(entries, 'desktop'), totalContent(el('div', 'emb-total'), total, from, flash),
+        button('内容を確認して相談する →', 'emb-button', 'desktop-continue', () => setStep(1)));
+    }
     byId('cart').replaceChildren(desktopPanel);
     if (!drawer.hidden) {
       const head = el('div', 'emb-drawer-head');
@@ -828,9 +844,12 @@ html, body { height:100%; margin:0; }
       if (entries.length) {
         summary.append(cartList(entries, 'review'), totalContent(el('div', 'emb-total'), total, from, flash));
         if (entries.some((item) => item.tier === 'regular')) summary.append(renderNotes(TIERS.regular.notes));
-      } else summary.append(el('p', '', '選択中のメニューはありません。メニューに戻って項目を選んでください。'),
-        button('メニューに戻る', 'emb-button emb-secondary', 'empty-back', () => setStep(0)));
-      form.hidden = !entries.length;
+      } else {
+        summary.append(el('p', '', consultSummary),
+          el('p', 'emb-small', 'ご希望やお悩みをお聞きしたうえで、最適なプランをご提案します。'));
+      }
+      byId('review-estimate').hidden = consultOnly;
+      message.placeholder = consultOnly ? '現在のお悩みや、作りたいもののイメージなどを自由にお書きください。' : menuPlaceholder;
     }
     if (announce) byId('status').textContent = '選択中 ' + entries.length + '件、合計 ' + estimate(total, from);
   }
@@ -900,7 +919,7 @@ html, body { height:100%; margin:0; }
     fields.contactMethod ||= '';
     let page = '';
     try { page = location.href; } catch { /* The embed may restrict access. */ }
-    return { items, total: items.reduce((sum, item) => sum + item.price, 0), form: fields, page, sentAt: new Date().toISOString() };
+    return { items, total: items.reduce((sum, item) => sum + item.price, 0), consultOnly: !items.length, form: fields, page, sentAt: new Date().toISOString() };
   }
 
   function setSending(busy) {
@@ -913,7 +932,7 @@ html, body { height:100%; margin:0; }
 
   form.addEventListener('submit', async (event) => {
     event.preventDefault();
-    if (sending || !lines().length || !validation()) return;
+    if (sending || !validation()) return;
     const alert = byId('send-error');
     alert.hidden = true;
     const payload = makePayload();
@@ -931,9 +950,14 @@ html, body { height:100%; margin:0; }
         if (!response.ok || (await response.json()).ok !== true) throw new Error('Submission failed');
       }
       const summary = byId('sent-cart');
-      summary.replaceChildren(el('h2', '', '送信内容'), cartList(payload.items),
-        totalContent(el('div', 'emb-total'), payload.total, payload.items.some((item) => item.from)),
-        el('p', 'emb-small', 'お名前：' + payload.form.name),
+      summary.replaceChildren(el('h2', '', '送信内容'));
+      if (payload.consultOnly) {
+        summary.append(el('p', '', consultSummary));
+      } else {
+        summary.append(cartList(payload.items),
+          totalContent(el('div', 'emb-total'), payload.total, payload.items.some((item) => item.from)));
+      }
+      summary.append(el('p', 'emb-small', 'お名前：' + payload.form.name),
         el('p', 'emb-small', 'メールアドレス：' + payload.form.email));
       byId('demo-note').hidden = Boolean(ENDPOINT);
       cart = Object.create(null);
@@ -962,7 +986,8 @@ html, body { height:100%; margin:0; }
     if (event.key === 'Escape' && !drawer.hidden) toggleDrawer(false);
   });
   byId('continue').addEventListener('click', () => setStep(1));
-  app.querySelector('[data-back]').addEventListener('click', () => setStep(0));
+  byId('consult').addEventListener('click', () => setStep(1));
+  byId('back').addEventListener('click', () => setStep(0));
   byId('reset').addEventListener('click', () => {
     form.reset();
     expanded.clear();
