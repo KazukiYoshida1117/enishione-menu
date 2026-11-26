@@ -158,6 +158,37 @@ html, body { height:100%; margin:0; }
   .emb-line-detail { margin-right:auto; }
   .emb-bottom, .emb-drawer, .emb-backdrop { display:none; }
 }
+
+.emb-autoheight, .emb-autoheight body { height:auto; overflow-x:clip; }
+.emb-autoheight .emb-app { height:auto; }
+.emb-autoheight .emb-scroll { overflow:visible; overscroll-behavior:auto; }
+@media (width < 960px) {
+  .emb-autoheight .emb-app { padding-bottom:var(--emb-bar-height, 0px); }
+  .emb-autoheight .emb-work { position:static; }
+  .emb-autoheight .emb-bottom {
+    position:absolute; left:0; right:0; z-index:1;
+    top:clamp(0px, calc(var(--emb-vis-bottom, 100%) - var(--emb-bar-height, 0px)), calc(100% - var(--emb-bar-height, 0px)));
+  }
+  .emb-autoheight .emb-backdrop {
+    z-index:2;
+    top:clamp(0px, var(--emb-vis-top, 0px), 100%);
+    bottom:clamp(0px, calc(100% - var(--emb-vis-bottom, 100%)), 100%);
+  }
+  .emb-autoheight .emb-drawer {
+    z-index:3; overscroll-behavior:auto;
+    bottom:clamp(0px, calc(100% - var(--emb-vis-bottom, 100%)), 100%);
+    max-height:clamp(0px, calc(min(100%, var(--emb-vis-bottom, 100%)) - var(--emb-vis-top, 0px)), 100%);
+  }
+}
+@media (min-width:960px) {
+  .emb-autoheight .emb-work:has(.emb-cart:not([hidden])) { padding-right:320px; }
+  .emb-autoheight .emb-cart {
+    position:absolute; top:0; right:0; width:320px; overscroll-behavior:auto;
+    max-height:min(100%, var(--emb-vis-span, 100%));
+    transform:translateY(var(--emb-cart-top, 0px)); transition:transform .12s ease-out;
+  }
+  .emb-autoheight .emb-cart-lines { overflow:visible; }
+}
 @media (prefers-reduced-motion:reduce) { .emb-app *, .emb-app *::before, .emb-app *::after { animation:none !important; transition:none !important; } }
 </style>
 </head>
@@ -611,7 +642,7 @@ html, body { height:100%; margin:0; }
     if (!key) return false;
     const target = Array.from(scope.querySelectorAll('[data-focus]')).find((node) => node.dataset.focus === key);
     if (!target || target.disabled) return false;
-    target.focus();
+    embFocus(target);
     return true;
   }
 
@@ -795,7 +826,7 @@ html, body { height:100%; margin:0; }
           const adjacent = entries[index + 1] || entries[index - 1];
           if (adjacent && focusKey(surface + '-remove-' + adjacent.id)) return;
           if (surface === 'drawer') focusKey('drawer-close');
-          else if (surface === 'review') byId('back').focus();
+          else if (surface === 'review') embFocus(byId('back'));
           else focusKey('tab-' + category);
         });
         remove.setAttribute('aria-label', item.tierLabel + ' ' + item.category + ' ' + item.name + 'を削除');
@@ -854,13 +885,88 @@ html, body { height:100%; margin:0; }
     if (announce) byId('status').textContent = '選択中 ' + entries.length + '件、合計 ' + estimate(total, from);
   }
 
+  const embPrefix = 'enishione-menu:';
+  let embAutoheight = false;
+  let embViewport;
+  let embFramePending = false;
+  let embLastHeight = 0;
+
+  function embPost(type, fields) {
+    window.parent.postMessage({ type: embPrefix + type, ...fields }, '*');
+  }
+
+  function embMeasure() {
+    if (embFramePending) return;
+    embFramePending = true;
+    requestAnimationFrame(() => {
+      embFramePending = false;
+      const barHeight = byId('bottom').offsetHeight;
+      app.style.setProperty('--emb-bar-height', barHeight + 'px');
+      // アプリの通常フローだけを計測し、現在の iframe 高さに依存させない。
+      const height = Math.ceil(app.getBoundingClientRect().height);
+      if (height > 0 && height !== embLastHeight) {
+        embLastHeight = height;
+        embPost('height', { height });
+      }
+      if (!embViewport) return;
+      const { top, viewportHeight, headerOffset } = embViewport;
+      const visibleTop = Math.max(0, headerOffset - top);
+      const visibleBottom = Math.min(height, viewportHeight - top);
+      app.style.setProperty('--emb-vis-top', visibleTop + 'px');
+      app.style.setProperty('--emb-vis-bottom', visibleBottom + 'px');
+      app.style.setProperty('--emb-vis-span', Math.max(0, visibleBottom - visibleTop) + 'px');
+      if (desktop.matches) {
+        const cartPanel = byId('cart');
+        const work = cartPanel.parentElement;
+        const workTop = work.getBoundingClientRect().top - app.getBoundingClientRect().top;
+        const cartTop = Math.max(0, Math.min(visibleTop + 16 - workTop, work.clientHeight - cartPanel.offsetHeight));
+        app.style.setProperty('--emb-cart-top', cartTop + 'px');
+      }
+    });
+  }
+
+  function embConnect() {
+    if (window.parent === window) return;
+    let attempts = 0;
+    let timer;
+    window.addEventListener('message', (event) => {
+      const data = event.data;
+      if (event.source !== window.parent || !data || typeof data !== 'object' ||
+          Array.isArray(data) || typeof data.type !== 'string') return;
+      if (data.type === embPrefix + 'host-ready' && !embAutoheight) {
+        embAutoheight = true;
+        clearInterval(timer);
+        document.documentElement.classList.add('emb-autoheight');
+        const observer = new ResizeObserver(embMeasure);
+        for (const target of [document.documentElement, app, byId('bottom'), byId('cart')]) observer.observe(target);
+        embMeasure();
+      } else if (data.type === embPrefix + 'viewport' && embAutoheight &&
+          [data.top, data.viewportHeight, data.headerOffset].every(Number.isFinite) &&
+          data.viewportHeight > 0 && data.headerOffset >= 0) {
+        embViewport = data;
+        embMeasure();
+      }
+    });
+    function hello() {
+      embPost('hello');
+      if (++attempts === 20) clearInterval(timer);
+    }
+    timer = setInterval(hello, 500);
+    hello();
+  }
+
+  function embFocus(target) {
+    if (embAutoheight) target.focus({ preventScroll: true });
+    else target.focus();
+  }
+
   function toggleDrawer(open, moveFocus = true) {
     drawer.hidden = backdrop.hidden = !open;
     countButton.setAttribute('aria-expanded', String(open));
     if (open) {
       renderCart();
       if (moveFocus) focusKey('drawer-close');
-    } else if (moveFocus) countButton.focus();
+    } else if (moveFocus) embFocus(countButton);
   }
 
   function setStep(next) {
@@ -879,7 +985,8 @@ html, body { height:100%; margin:0; }
       renderMenu();
     }
     renderCart();
-    scroll.scrollTop = 0;
+    if (embAutoheight) embPost('scroll-to', { offset: 0 });
+    else scroll.scrollTop = 0;
     sections[step].querySelector('h1').focus({ preventScroll: true });
   }
 
@@ -907,7 +1014,14 @@ html, body { height:100%; margin:0; }
     };
     for (const [field, message] of Object.entries(errors)) fieldError(field, message);
     const first = Object.keys(errors).find((field) => errors[field]);
-    if (first) byId(first).focus();
+    if (first) {
+      const input = byId(first);
+      embFocus(input);
+      if (embAutoheight) {
+        const offset = input.getBoundingClientRect().top - app.getBoundingClientRect().top;
+        embPost('scroll-to', { offset });
+      }
+    }
     return !first;
   }
 
@@ -976,7 +1090,7 @@ html, body { height:100%; margin:0; }
   desktop.addEventListener('change', () => {
     const focused = panel.contains(document.activeElement) ? document.activeElement.dataset.focus : '';
     renderMenu();
-    if (!focusKey(focused) && focused) panel.focus();
+    if (!focusKey(focused) && focused) embFocus(panel);
     if (desktop.matches && !drawer.hidden) {
       toggleDrawer(false, false);
       if (!focusKey('desktop-continue')) focusKey('tab-' + category);
@@ -1001,6 +1115,7 @@ html, body { height:100%; margin:0; }
   renderTabs();
   renderMenu();
   renderCart();
+  embConnect();
 })();
 </script>
 </body>
